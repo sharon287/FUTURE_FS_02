@@ -34,9 +34,9 @@ You may choose tools based on your comfort level.
 Frontend
 HTML / CSS / JavaScript
 Backend
-Node.js – https://nodejs.org/
+Node.js 
 Database
-MongoDB – https://www.mongodb.com/
+MongoDB 
 
 Used to store:
 lead details
