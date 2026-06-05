@@ -1,46 +1,121 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="stylesheet" href="style.css">
-    <title>Contact Us</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Admin Panel</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f4f9; margin: 20px; }
+        .box { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 1000px; margin: 0 auto; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { padding: 10px 15px; background: #007BFF; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        button:hover { background: #0056b3; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
+        th { background-color: #f2f2f2; }
+        select { padding: 6px; border-radius: 4px; }
+        .hidden { display: none; }
+        #error { color: red; text-align: center; font-weight: bold; }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Get in Touch</h1>
-        <p>Fill out this form, and our sales team will reach out shortly.</p>
-        <form id="contactForm">
-            <label>Name</label>
-            <input type="text" id="name" required>
-            
-            <label>Email Address</label>
-            <input type="email" id="email" required>
-            
-            <label>Message / Requirements</label>
-            <textarea id="message" rows="4" required></textarea>
-            
-            <button type="submit">Submit Request</button>
-        </form>
-        <p id="formFeedback" style="color: green; margin-top: 15px; font-weight: bold;"></p>
-    </div>
 
-    <script>
-        document.getElementById('contactForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const data = {
-                name: document.getElementById('name').value,
-                email: document.getElementById('email').value,
-                message: document.getElementById('message').value
-            };
-            const response = await fetch('/api/leads', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            if (response.ok) {
-                document.getElementById('formFeedback').innerText = "Thank you! We'll be in touch.";
-                document.getElementById('contactForm').reset();
+<div id="loginSection" class="box">
+    <h2>CRM Admin Login</h2>
+    <input type="text" id="user" placeholder="Username (admin)">
+    <input type="password" id="pass" placeholder="Password (admin123)">
+    <button onclick="handleLogin()" style="width:100%;">Login</button>
+    <p id="error"></p>
+</div>
+
+<div id="dashboardSection" class="box hidden">
+    <h2>💼 Real-Time Lead Management Panel</h2>
+    <button onclick="loadLeads()" style="background: #28a745; margin-bottom: 15px;">🔄 Refresh Database Records</button>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Message</th>
+                <th>Lead Status</th>
+                <th>Follow-up Notes</th>
+            </tr>
+        </thead>
+        <tbody id="leadsTableBody">
+            <tr><td colspan="5">No data available.</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    function handleLogin() {
+        const username = document.getElementById('user').value;
+        const password = document.getElementById('pass').value;
+        const error = document.getElementById('error');
+
+        if(username === 'admin' && password === 'admin123') {
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('dashboardSection').classList.remove('hidden');
+            loadLeads();
+        } else {
+            error.innerText = "Invalid credentials. Use admin / admin123";
+        }
+    }
+
+    async function loadLeads() {
+        try {
+            const res = await fetch('/api/leads');
+            const data = await res.json();
+            const tbody = document.getElementById('leadsTableBody');
+            tbody.innerHTML = '';
+            
+            if(data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5">No submissions found yet.</td></tr>';
+                return;
             }
-        });
-    </script>
+
+            data.forEach(lead => {
+                const row = `<tr>
+                    <td><b>${lead.name || 'N/A'}</b></td>
+                    <td>${lead.email || 'N/A'}</td>
+                    <td>${lead.message || 'N/A'}</td>
+                    <td>
+                        <select id="status-${lead._id}" onchange="updateLead('${lead._id}')">
+                            <option value="new" ${lead.status === 'new' ? 'selected' : ''}>🆕 New</option>
+                            <option value="contacted" ${lead.status === 'contacted' ? 'selected' : ''}>📞 Contacted</option>
+                            <option value="converted" ${lead.status === 'converted' ? 'selected' : ''}>🎉 Converted</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="text" id="notes-${lead._id}" value="${lead.notes || ''}" placeholder="Add follow-up notes..." style="margin:0; padding:5px; width:70%;">
+                        <button onclick="updateLead('${lead._id}')" style="padding:5px 8px; background:#6c757d;">💾</button>
+                    </td>
+                </tr>`;
+                tbody.insertAdjacentHTML('beforeend', row);
+            });
+        } catch(err) {
+            alert('Error loading CRM records from backend.');
+        }
+    }
+
+    async function updateLead(id) {
+        const currentStatus = document.getElementById(`status-${id}`).value;
+        const currentNotes = document.getElementById(`notes-${id}`).value;
+
+        try {
+            const response = await fetch(`/api/leads/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: currentStatus, notes: currentNotes })
+            });
+            if(response.ok) {
+                console.log('Lead record updated successfully.');
+            }
+        } catch(err) {
+            alert('Failed to sync changes with database.');
+        }
+    }
+</script>
 </body>
 </html>
